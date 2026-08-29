@@ -3,7 +3,7 @@
 #https://developers.google.com/edge/mediapipe/solutions/vision/holistic_landmarker/python
 
 
-# python3 -m pip install mediapipe
+# python3 -m pip install "mediapipe==0.10.14"
 
 import cv2
 #facial landmarks i want to visualize

@@ -2,6 +2,7 @@
 # source venv/bin/activate
 # pip install -r requirements.txt
 
+#python3 preprocessing/preprocess_batch_processing.py
 import os
 import cv2
 import numpy as np
