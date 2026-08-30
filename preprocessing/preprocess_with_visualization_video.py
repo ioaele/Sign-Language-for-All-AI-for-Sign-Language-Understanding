@@ -2,7 +2,7 @@
 
 import cv2
 import mediapipe as mp
-from media_pipe import media_pipe
+from visualization import visualization
 from normalization import normalization
 mp_drawing = mp.solutions.drawing_utils
 mp_holistic = mp.solutions.holistic
@@ -42,7 +42,7 @@ with mp_holistic.Holistic( # mediaPipe holistic detects:
         # RGB -> BGR SO WE CAN THEN SHOW THEM IN CV2
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        media_pipe(image,results,frame, holistic, mp_drawing, mp_holistic)
+        visualization(image,results,frame, holistic, mp_drawing, mp_holistic)
         
         pose_landmarks, face_landmarks, left_hand_landmarks, right_hand_landmarks=normalization(results,image)
         
