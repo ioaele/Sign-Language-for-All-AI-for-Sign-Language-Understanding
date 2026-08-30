@@ -11,7 +11,7 @@ def calculate_stats(entries):
 
     lengths = np.array(lengths)
 
-    print(f"Σύνολο glosses: {len(lengths)}")
+    print(f"Total glosses: {len(lengths)}")
     print(f"Mean: {lengths.mean():.1f}")
     print(f"Median: {np.median(lengths):.1f}")
     print(f"Min: {lengths.min()}")
