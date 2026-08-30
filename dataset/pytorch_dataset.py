@@ -20,7 +20,7 @@ class GSLDataset(Dataset):
         npy_path, label = self.glosses[idx]  #idx gloss path
 
         landmarks=np.load(npy_path)  #load its landmarks
-        landmarks = self.change_length( npy_path,max_length)   #change its number of frames to be at max_length
+        landmarks = self.change_length(npy_path)   #change its number of frames to be at max_length
 
         label_id = self.dictionary[label] #get the id from its label in the dictionary
 
@@ -39,18 +39,18 @@ class GSLDataset(Dataset):
 # 95th percentile: 29.0 afto simeni oti mono to 5% einai panw apo 29 frames
 # ara to meso length (max_length) ipologizw na einai peripou 30 afou etsi tha kano truncate mono to 5% pou einai poli pio simantiko apo to padding (xanis nohma)
 
-    def change_length(npy_path,length):
-        
+    def change_length(self,npy_path):
+            max_length=self.max_length
             landmarks = np.load(npy_path)
             length=landmarks.shape[0]
             # apo to (number of frames,dots/landmarks/point in each frame,how many dimensions is each landmark)
             # we get the first argument
             
             if length>max_length : #concatenate keep only the first max_length frames
-                return landmarks[:self.max_length]
+                return landmarks[:max_length]
             
             elif length<max_length: #padding
-                padding_length = self.max_length - length # see hoe much padding we need
+                padding_length = max_length - length # see hoe much padding we need
                 padding = np.zeros((padding_length, landmarks.shape[1], landmarks.shape[2])) 
                 # create npy table with zeros with the size of padding_length and with the same landmark size and dimensions 
                 return np.concatenate([landmarks, padding], axis=0) #enose tous dio "pinakes", axis=0
