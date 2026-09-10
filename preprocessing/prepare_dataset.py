@@ -35,7 +35,11 @@ def get_valid_glosses(csv_path,root,min_frames):
     
  
     for npy_path, label in available:
-        landmarks = np.load(npy_path)          
+        try:
+            landmarks = np.load(npy_path)
+        except Exception as e: #an arxeio adio (0B) do not crash and continue 
+            continue
+        
         if landmarks.shape[0] >= min_frames: #to shape sou epistrefei to metadata tou npy
             # (number of frames,dots/landmarks/point in each frame,how many dimensions is each landmark)
             valid.append((npy_path, label))
