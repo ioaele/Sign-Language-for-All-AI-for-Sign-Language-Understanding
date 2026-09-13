@@ -8,3 +8,10 @@ __pycache__/
 data/
 
 processed_landmarks/
+
+search/
+
+.DS_Store
+
+*.pt
+*.pth
