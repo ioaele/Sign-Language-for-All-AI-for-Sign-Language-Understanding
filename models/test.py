@@ -165,7 +165,7 @@ import os
 from groq import Groq
 
 llm_client = Groq(
-    api_key=os.environ.get("REMOVED_GROQ_API_KEYS")
+    api_key=os.environ.get("GROQ_API_KEY")
 )
 
 

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+#reference https://medium.com/@iammasariya/transformer-architecture-explained-with-code-359259db460f
 
 class ISLRTransformer(nn.Module):
 
@@ -31,7 +31,7 @@ class ISLRTransformer(nn.Module):
         )
 
 
-#input dropout: tixaia svinei merikous arithmous kata to training gia na min stiriezetai to montelo poli se sigkekrimena landmarks
+#input dropout: tixaia svinei merikous arithmous kata to training gia na min stiriezetai to montelo poli se sigkekrimena landmarks (to prevent overfitting)
         self.input_dropout = nn.Dropout(dropout)
 
 #transformer encoder: self-attention mechanism vlepontas oles tis sxeseis metaksi ton frames 
@@ -48,7 +48,7 @@ class ISLRTransformer(nn.Module):
 # to "erotima" mas - ena mono learnable dianysma pou tha mathei na "rotaei" ta frames poio einai simantiko
             self.class_query = nn.Parameter(torch.randn(1, 1, hidden_dim) * 0.02)
 
-# etoimo attention tou pytorch. to erotima (query) tha "koitaei" ola ta frames (key/value) kai tha vgalei ena dianysma me to
+# etoimo attention tou pytorch. to erotima (query)  "koitaei" ola ta frames (key/value) kai vgalei ena dianysma me to
 # poso simantiko einai to kathe frame
             self.class_attention = nn.MultiheadAttention(embed_dim=hidden_dim,num_heads=num_heads,dropout=dropout,batch_first=True)
 
@@ -109,12 +109,7 @@ class ISLRTransformer(nn.Module):
 # To erotima "koitaei" ola ta frames tou video kai apofasizei poia einai simantika (agnooontas ta padding eksetias sto padding_mask)
 # query = to "erotima" [B,1,H] | key/value = ta frames meta ton encoder [B,S,H]
 # key_padding_mask: True = agnoise auto to frame (padding)
-            x, _ = self.class_attention(
-                query,
-                x,
-                x,
-                key_padding_mask=padding_mask
-            )
+            x, _ = self.class_attention(query,x,x,key_padding_mask=padding_mask)
             x = x.squeeze(1)  # [B, 1, H] -> [B, H]
 
             # kanonikopoioume tin klimaka
@@ -141,7 +136,7 @@ class ISLRTransformer(nn.Module):
 
         x = self.classifier_dropout(x)
 
-# teliko skor - ena skor gia kathe noima
-        logits = self.classifier(x)
+# teliko score - ena score gia kathe noima/leksi
+        score = self.classifier(x)
 
-        return logits
+        return score
