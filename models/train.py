@@ -10,7 +10,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from models.transformer import ISLRTransformer
-from dataset.GSLDataset import create_dataloaders
+from dataset.dataset import create_dataloaders
 from preprocessing.prepare_dataset import get_valid_glosses
 
 
