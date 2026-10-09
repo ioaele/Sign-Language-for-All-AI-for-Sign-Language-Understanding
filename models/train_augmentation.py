@@ -1,5 +1,5 @@
 # cd "/Users/ioaele/Desktop/thesis/Sign-Language-for-All-AI-for-Sign-Language-Understanding/code"
-# python3 -m models.train
+# python3 -m models.train_augmentation
 import json
 import time
 import math
@@ -24,7 +24,7 @@ MAX_LENGTH = 30   #max frame length
 MIN_FRAMES = 3   #min frame length 
 ROOT = "processed_landmarks"  
 
-BEST_MODEL_PATH = "islr_v2_best.pt" 
+BEST_MODEL_PATH = "islr_augmentation.pt" 
 
 NUM_LAYERS = 4 #transformer layers
 HIDDEN_DIM = 256  # transform the input numbers/landmarks to hidden_dim 
@@ -75,7 +75,7 @@ def lr_schedule(epoch):
     return 0.5 * (1 + math.cos(math.pi * progress))
 
 
-scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_schedule=lr_schedule)
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
 
 #to "loss" metraei poso lathos exei to montelo. label_smoothing
 #kanei to montelo na min einai ipervolika sigouro gia tis apantiseis tou
@@ -184,15 +184,13 @@ for epoch in range(NUM_EPOCHS):
         epochs_without_improvement += 1
 
     current_lr = optimizer.param_groups[0]["lr"]
-    marker = " best" if is_best else ""
 
     print(
-        f"Epoch {epoch + 1}/{NUM_EPOCHS} -- "
+        f"Epoch {epoch + 1}/{NUM_EPOCHS}: "
         f"LR: {current_lr:.8f}, "
         f"Train loss: {avg_train_loss:.4f}, "
         f"Train acc: {train_accuracy:.2%}, "
         f"Val acc: {val_accuracy:.2%}"
-        f"{marker}"
     )
 
     # early stopping: an den veltionete to val accuracy mexri PATIENCE epochs stop
@@ -230,9 +228,9 @@ axes[1].legend()
 axes[1].grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("training_curves.png", dpi=150)
+plt.savefig("training_curves_augmentation.png", dpi=150)
 plt.close()
-print("Αποθηκεύτηκε: training_curves.png")
+print("saved: training_curves_augmentation.png")
 
 
 
@@ -259,10 +257,8 @@ all_labels = np.array(all_labels)
 
 test_accuracy = (all_preds == all_labels).mean()
 
-print(f"\n{'=' * 60}")
-print(f"TEST SET ACCURACY: {test_accuracy:.2%}")
-print(f"{'=' * 60}")
 
+print(f"TEST SET ACCURACY: {test_accuracy:.2%}")
 
 # ANAFORA ANA KATIGORIA (classification report)
 try:
@@ -278,7 +274,7 @@ try:
         digits=4, zero_division=0
     )
 
-    with open("test_classification_report.txt", "w", encoding="utf-8") as f:
+    with open("test_classification_augmentation_report.txt", "w", encoding="utf-8") as f:
         f.write(f"Test accuracy: {test_accuracy:.4f}\n\n")
         f.write(report)
 
@@ -296,7 +292,7 @@ try:
 
     per_class_rows.sort(key=lambda r: (r["accuracy"] if r["accuracy"] != "" else 2.0))
 
-    with open("per_class_accuracy.csv", "w", newline="", encoding="utf-8") as f:
+    with open("per_class_accuracy_augmentation.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["class_id", "gloss", "n_test_samples", "accuracy"])
         writer.writeheader()
         writer.writerows(per_class_rows)
@@ -311,7 +307,7 @@ try:
     plt.ylabel("True class")
     plt.colorbar(fraction=0.046, pad=0.04)
     plt.tight_layout()
-    plt.savefig("confusion_matrix.png", dpi=150)
+    plt.savefig("confusion_matrix_augmentation.png", dpi=150)
     plt.close()
 
     # top 30 pio "mperdemena" zeugi glosses
@@ -322,38 +318,10 @@ try:
                 confused_pairs.append((cm[i, j], id_to_label[true_c], id_to_label[pred_c]))
     confused_pairs.sort(reverse=True)
 
-    with open("top_confused_pairs.txt", "w", encoding="utf-8") as f:
+    with open("top_confused_pairs_augmentation.txt", "w", encoding="utf-8") as f:
         f.write("Top 30 most confused (true -> predicted) gloss pairs on the test set:\n\n")
         for count, true_label, pred_label in confused_pairs[:30]:
             f.write(f"{count:4d}x   {true_label}  ->  {pred_label}\n")
 
-    print("Saved: classification report / per-class accuracy / confusion matrix / top confused pairs")
-
 except ImportError:
   print("sklearn missing, skipping report")
-summary = {
-    "hyperparameters": {
-        "num_layers": NUM_LAYERS, "hidden_dim": HIDDEN_DIM, "num_heads": NUM_HEADS,
-        "dropout": DROPOUT, "lr": LR, "weight_decay": WEIGHT_DECAY,
-        "scheduler": "warmup+cosine", "warmup_epochs": WARMUP_EPOCHS,
-        "use_mask": USE_MASK, "pooling": POOLING, "augmentation": True,
-        "batch_size": BATCH_SIZE, "max_length": MAX_LENGTH,
-    },
-    "training": {
-        "epochs_run": len(history["train_acc"]), "epochs_budget": NUM_EPOCHS,
-        "best_epoch": best_epoch, "best_val_accuracy": round(best_val_accuracy, 4),
-        "training_time_minutes": round(training_time / 60, 1),
-    },
-    "test_accuracy": round(float(test_accuracy), 4),
-    "num_classes": num_classes,
-    "dataset_sizes": {"train": len(train_valid), "val": len(val_valid), "test": len(test_valid)},
-    "compare_to_v1": {
-        "v1_test_accuracy": 0.8420,
-        "note": "v1 = mean pooling, no augmentation, plain cosine (no warmup)"
-    }
-}
-
-with open("final_results_summary.json", "w", encoding="utf-8") as f:
-    json.dump(summary, f, indent=2, ensure_ascii=False)
-
-print("\Saved: final_results_summary.json")

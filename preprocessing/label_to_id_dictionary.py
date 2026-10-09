@@ -13,7 +13,7 @@ def label_to_id():
 # Με πραγματικό dictionary, η αναζήτηση είναι άμεση: label_to_id["ΓΕΙΑ"] σου δίνει κατευθείαν το id, χωρίς αναζήτηση
     MIN_FRAMES = 3   
 
-    train_glosses = get_valid_glosses("data/train_greek_iso.csv",root,MIN_FRAMES)
+    train_glosses = get_valid_glosses("data/train_greek_iso_merged.csv",root,MIN_FRAMES)
 
     i=0
 

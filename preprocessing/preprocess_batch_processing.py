@@ -76,8 +76,7 @@ def main():
             if os.path.isdir(os.path.join(DATA_ROOT, f))
         ]
 
-        total_processed = 0
-        total_skipped = 0
+ 
 
         for folder_name in folders:
 
@@ -103,15 +102,14 @@ def main():
 
                 if landmarks is None:
                     print(f"Skip {folder_name}/{gloss_name}. Frames not found")
-                    total_skipped += 1
                     continue
 
                 np.save(output_file, landmarks)
-                total_processed += 1
+    
 
             print(f"Folder {folder_name} done ({len(gloss_folders)} glosses)")
 
-        print(f"\nDone! Processed {total_processed} glosses, skipped {total_skipped}.")
+
 
 
 if __name__ == "__main__":

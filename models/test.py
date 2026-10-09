@@ -1,7 +1,4 @@
 """
-inference.py
-=============
-
 Pairnei to IDI training tou montelou (to .pt arxeio pou apothikeftike
 apo to train_v2.py) kai to xrisimopoiei gia na kanei PROVLEPSI (inference)
 se ENA OLOKLIRO FAKELO me glosses (glosses0000.npy, glosses0001.npy, ...)
@@ -10,9 +7,8 @@ se ENA OLOKLIRO FAKELO me glosses (glosses0000.npy, glosses0001.npy, ...)
 To apotelesma einai mia LISTA apo glosses (p.x. "ΑΣΤΥΝΟΜΙΑ ΕΓΩ ΨΑΧΝΩ"),
 etoimi na tin stileis meta se ena LLM (GPT/Claude) gia na ftiaxei
 kanoniki, gramatika sosti protasi.
-
-Xrisi:
-    python inference.py
+cd "/Users/ioaele/Desktop/thesis/Sign-Language-for-All-AI-for-Sign-Language-Understanding/code"
+python3 -m models.train.py     
 """
 
 import json
@@ -26,7 +22,7 @@ from models.transformer import ISLRTransformer
 # 0. RYTHMISEIS -- idia me auta pou xrisimopoiises sto training
 # ============================================================
 
-MODEL_PATH = "islr_v2_best.pt"      # to .pt pou apothikeftike apo to train_v2.py
+MODEL_PATH = "islr_augmentation.pt"      # to .pt pou apothikeftike apo to train_v2.py
 DICTIONARY_PATH = "dataset/dictionary.json"
 
 HIDDEN_DIM = 256

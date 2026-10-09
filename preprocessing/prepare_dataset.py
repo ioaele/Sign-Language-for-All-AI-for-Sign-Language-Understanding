@@ -1,7 +1,7 @@
-#claude script
 import os
 import csv
 import numpy as np
+from tqdm import tqdm
 
 #metatropi twn csv files se lista path,label 
 def get_glosses(csv_path):
@@ -14,35 +14,26 @@ def get_glosses(csv_path):
             glosses.append((folder_path, label))
     return glosses
 
-#prepei na filtraroume apo to csv file poia glosses exoume emeis (epeksergasmena/normalized)
-def get_available_glosses(glosses,root):
-    available = []
-    for folder_path, label in glosses:
-        npy_path = os.path.join(root, folder_path + ".npy") #TO ACTUAL PATH OXI TO RELATIVE PATH POU IPARXEI STO CSV
-        if os.path.exists(npy_path):
-            available.append((npy_path, label))
-    return available
 
-
-#epidi kapoia glosses exoun 1 kai 2 frames pou den einai efikto realistika 
-# na exoume to gloss kai na vroume me to media pipe to soma klp ta afairoume apo ta deigmata mas
+#vasi tou eda polla glosses exoyn <3 frames opote filtraroume ta dedomena mas gia na pernoun >=3frames glosses
 # den evala statika min frames=3 gia na einai pio dynamic kai flexible
-def get_valid_glosses(csv_path,root,min_frames):
+def get_valid_glosses(csv_path, root, min_frames):
     valid = []
-    
-    all=get_glosses(csv_path)
-    available=get_available_glosses(all,root)
-    
- 
-    for npy_path, label in available:
+
+    glosses = get_glosses(csv_path)
+
+    for i, (npy_path, label) in enumerate(tqdm(glosses, desc=f"Validating {os.path.basename(csv_path)}")):
+
+        path = os.path.join(root, npy_path + ".npy")
+
         try:
-            landmarks = np.load(npy_path)
+            landmarks = np.load(path)
+
         except Exception as e: #an arxeio adio (0B) do not crash and continue 
             continue
-        
+
         if landmarks.shape[0] >= min_frames: #to shape sou epistrefei to metadata tou npy
-            # (number of frames,dots/landmarks/point in each frame,how many dimensions is each landmark)
+#             # (number of frames,dots/landmarks/point in each frame,how many dimensions is each landmark)
             valid.append((npy_path, label))
 
     return valid
-

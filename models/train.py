@@ -24,7 +24,7 @@ MAX_LENGTH = 30   #max frame length
 MIN_FRAMES = 3   #min frame length 
 ROOT = "processed_landmarks"  
 
-BEST_MODEL_PATH = "islr_v2_best.pt" 
+BEST_MODEL_PATH = "islr.pt" 
 
 NUM_LAYERS = 4 #transformer layers
 HIDDEN_DIM = 256  # transform the input numbers/landmarks to hidden_dim 
@@ -34,7 +34,6 @@ LR = 2e-4  #learning rate: poso "megalo vima" kanei to montelo se kathe diorthos
 WEIGHT_DECAY = 1e-5  #to avoid overfitting: mikri "poinh" pou empodizei ta varh na ginoun poly megala
 USE_MASK = True    #to montelo agnoei ta padding frames (den ta ypologizei san pragmatika)
 POOLING = "class_query"  #pooling method (from paper https://ieeexplore.ieee.org/document/9707552)
-
 
 train_valid = get_valid_glosses("data/train_greek_iso.csv", ROOT, MIN_FRAMES)
 val_valid = get_valid_glosses("data/val_greek_iso.csv", ROOT, MIN_FRAMES)
@@ -75,7 +74,7 @@ def lr_schedule(epoch):
     return 0.5 * (1 + math.cos(math.pi * progress))
 
 
-scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_schedule=lr_schedule)
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
 
 #to "loss" metraei poso lathos exei to montelo. label_smoothing
 #kanei to montelo na min einai ipervolika sigouro gia tis apantiseis tou
@@ -184,15 +183,14 @@ for epoch in range(NUM_EPOCHS):
         epochs_without_improvement += 1
 
     current_lr = optimizer.param_groups[0]["lr"]
-    marker = " best" if is_best else ""
+
 
     print(
-        f"Epoch {epoch + 1}/{NUM_EPOCHS} -- "
+        f"Epoch {epoch + 1}/{NUM_EPOCHS} : "
         f"LR: {current_lr:.8f}, "
         f"Train loss: {avg_train_loss:.4f}, "
         f"Train acc: {train_accuracy:.2%}, "
         f"Val acc: {val_accuracy:.2%}"
-        f"{marker}"
     )
 
     # early stopping: an den veltionete to val accuracy mexri PATIENCE epochs stop
@@ -232,7 +230,7 @@ axes[1].grid(alpha=0.3)
 plt.tight_layout()
 plt.savefig("training_curves.png", dpi=150)
 plt.close()
-print("Αποθηκεύτηκε: training_curves.png")
+print("Saved: training_curves.png")
 
 
 
@@ -259,9 +257,9 @@ all_labels = np.array(all_labels)
 
 test_accuracy = (all_preds == all_labels).mean()
 
-print(f"\n{'=' * 60}")
+
 print(f"TEST SET ACCURACY: {test_accuracy:.2%}")
-print(f"{'=' * 60}")
+
 
 
 # ANAFORA ANA KATIGORIA (classification report)
@@ -327,33 +325,6 @@ try:
         for count, true_label, pred_label in confused_pairs[:30]:
             f.write(f"{count:4d}x   {true_label}  ->  {pred_label}\n")
 
-    print("Saved: classification report / per-class accuracy / confusion matrix / top confused pairs")
 
 except ImportError:
   print("sklearn missing, skipping report")
-summary = {
-    "hyperparameters": {
-        "num_layers": NUM_LAYERS, "hidden_dim": HIDDEN_DIM, "num_heads": NUM_HEADS,
-        "dropout": DROPOUT, "lr": LR, "weight_decay": WEIGHT_DECAY,
-        "scheduler": "warmup+cosine", "warmup_epochs": WARMUP_EPOCHS,
-        "use_mask": USE_MASK, "pooling": POOLING, "augmentation": True,
-        "batch_size": BATCH_SIZE, "max_length": MAX_LENGTH,
-    },
-    "training": {
-        "epochs_run": len(history["train_acc"]), "epochs_budget": NUM_EPOCHS,
-        "best_epoch": best_epoch, "best_val_accuracy": round(best_val_accuracy, 4),
-        "training_time_minutes": round(training_time / 60, 1),
-    },
-    "test_accuracy": round(float(test_accuracy), 4),
-    "num_classes": num_classes,
-    "dataset_sizes": {"train": len(train_valid), "val": len(val_valid), "test": len(test_valid)},
-    "compare_to_v1": {
-        "v1_test_accuracy": 0.8420,
-        "note": "v1 = mean pooling, no augmentation, plain cosine (no warmup)"
-    }
-}
-
-with open("final_results_summary.json", "w", encoding="utf-8") as f:
-    json.dump(summary, f, indent=2, ensure_ascii=False)
-
-print("\Saved: final_results_summary.json")

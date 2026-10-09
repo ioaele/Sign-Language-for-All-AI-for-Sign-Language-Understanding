@@ -20,7 +20,7 @@ class GSLDataset(Dataset):
     def __getitem__(self, idx):
         npy_path, label = self.glosses[idx]  #idx gloss path
 
-        print("Loading:", npy_path)
+       
         landmarks = np.load(npy_path)  # [frames, landmarks, 2]
 
         landmarks, valid_length = self.change_length(landmarks)   #change its number of frames to be at max_length
