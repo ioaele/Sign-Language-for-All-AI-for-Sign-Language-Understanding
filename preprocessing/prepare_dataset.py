@@ -37,3 +37,11 @@ def get_valid_glosses(csv_path, root, min_frames):
             valid.append((npy_path, label))
 
     return valid
+
+
+#GIA NA MPORO NA KALW LOAD TA .NPY FILES I NEED THE FULL PATH NOT THE REGULAR THAT IS IN THE CSV FILES
+
+
+
+def relative_to_full_gloss_paths(glosses, root):
+    return [(str(root / f"{relative_path}.npy"), label)for relative_path, label in glosses]

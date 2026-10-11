@@ -97,11 +97,14 @@ class GSLDataset(Dataset):
         if self.augmentation:
             landmarks = augmentation(landmarks)
 
-        landmarks, valid_length = self.change_length(landmarks)   #change its number of frames to be at max_length
+        landmarks, not_padding_frames = self.change_length(landmarks)   #change its number of frames to be at max_length
+        
+        #BHMA 1
+        landmarks = landmarks.reshape(self.max_length, -1) #(32,40,146,2) -> (32,40,292)
 
         label_id = self.dictionary[label] #get the id from its label in the dictionary
 
-        return torch.tensor(landmarks, dtype=torch.float32), label_id, valid_length
+        return torch.tensor(landmarks, dtype=torch.float32), label_id, not_padding_frames
      #for a specific index return the landmarks of that gloss and its label id
 
 # afou to deep model prepei na exei to idio input type each time prepei na kanoume ta glosses mas idiou mikous
@@ -122,24 +125,23 @@ class GSLDataset(Dataset):
         # apo to (number of frames,dots/landmarks/point in each frame,how many dimensions is each landmark)
         # we get the first argument
 
-        valid_length = min(length, max_length)
+        not_padding_frames = min(length, max_length)
         
         if length > max_length:  # concatenate keep only the first max_length frames
-            return landmarks[:max_length], valid_length
+            return landmarks[:max_length], not_padding_frames
 
         elif length < max_length:  # padding
             padding_length = max_length - length  # see how much padding we need
             padding = np.zeros((padding_length, landmarks.shape[1], landmarks.shape[2]),dtype=landmarks.dtype)            # create npy table with zeros with the size of padding_length and with the same landmark size and dimensions
             padded = np.concatenate([landmarks, padding], axis=0)  # enose tous dio "pinakes", axis=0
                 # to add them according to the frames length (proto argument)
-            return padded, valid_length
+            return padded, not_padding_frames
 
         else:  # 30 length keep it as it is
-            return landmarks, valid_length
+            return landmarks, not_padding_frames
 
 
-def create_dataloaders(train_valid, val_valid, test_valid, dictionary, max_length=30,
-                        batch_size=32):
+def create_dataloaders_aug(train_valid, val_valid, test_valid, dictionary, max_length=30,batch_size=32):
 # batch_size = posa dedomena tha vlepei/epeksergazete to montelo mazi/taftoxrona
 
     # ftiaxnoume 3 ksexorista Dataset objects. ena gia to kathe train/val/test

@@ -8,7 +8,7 @@ import numpy as np
 
 class GSLDataset(Dataset):
     
-    def __init__(self, glosses, dictionary, max_length=30):
+    def __init__(self, glosses, dictionary, max_length=40):
         self.glosses = glosses # lista (path,label) poy ftiaksame apo to get_available_glosses
         self.dictionary = dictionary  #lista label-id
         self.max_length = max_length      # megisto length gia to stathero input
@@ -17,56 +17,57 @@ class GSLDataset(Dataset):
         return len(self.glosses) # returns the number of glosses we have
 
    
-    def __getitem__(self, idx):
-        npy_path, label = self.glosses[idx]  #idx gloss path
+    def __getitem__(self, index):
+        npy_path, label = self.glosses[index]  #index gloss path
 
-       
         landmarks = np.load(npy_path)  # [frames, landmarks, 2]
 
-        landmarks, valid_length = self.change_length(landmarks)   #change its number of frames to be at max_length
+        landmarks, not_padding_frames = self.change_length(landmarks)   #change its number of frames to be at max_length
 
+        #BHMA 1
+        landmarks = landmarks.reshape(self.max_length, -1) #(32,40,146,2) -> (32,40,292)
+
+        
         label_id = self.dictionary[label] #get the id from its label in the dictionary
 
-        return torch.tensor(landmarks, dtype=torch.float32), label_id, valid_length
-     #for a specific index return the landmarks of that gloss and its label id
+        return torch.tensor(landmarks, dtype=torch.float32), label_id, not_padding_frames
+     #for a specific index return the landmarks of that gloss, its label id and its real number of frames
+     
+     #Ένα tensor είναι ένας πολυδιάστατος πίνακας αριθμών. 
+     # Στο PyTorch, τα tensors είναι η βασική δομή δεδομένων που χρησιμοποιούμε για 
+     # να αποθηκεύουμε inputs, labels, παραμέτρους του μοντέλου και αποτελέσματα υπολογισμών.
+     
      
 # afou to deep model prepei na exei to idio input type each time prepei na kanoume ta glosses mas idiou mikous
 # eite padding to make them bigger eite truncate to make the shorter (in length)
 # giafto kai eprepe na doume to meso length ton glosses (posa frames exoun) me thn klassi
 # calculate_staticts k apo oti idame:
-# Total glosses: 33162
-# Mean: 16.9
-# Median: 16.0
-# Min: 3
-# Max: 137
-# 95th percentile: 29.0 afto simeni oti mono to 5% einai panw apo 29 frames
-# ara to meso length (max_length) ipologizw na einai peripou 30 afou etsi tha kano truncate mono to 5% pou einai poli pio simantiko apo to padding (xanis nohma)
-
+#AFTER EDA I HAVE TO THE CONCLUSION THAT MAYBE 40 MAX_LENGTH IS MORE OPTIMAL THAN 30.
     def change_length(self, landmarks):
         max_length = self.max_length
         length = landmarks.shape[0]
         # apo to (number of frames,dots/landmarks/point in each frame,how many dimensions is each landmark)
         # we get the first argument
 
-        valid_length = min(length, max_length)
+        not_padding_frames = min(length, max_length) #posa frames einai pragmatika frames kai oxi padding
         
         if length > max_length:  # concatenate keep only the first max_length frames
-            return landmarks[:max_length], valid_length
+            return landmarks[:max_length], not_padding_frames
 
         elif length < max_length:  # padding
             padding_length = max_length - length  # see how much padding we need
             padding = np.zeros((padding_length, landmarks.shape[1], landmarks.shape[2]),dtype=landmarks.dtype)            # create npy table with zeros with the size of padding_length and with the same landmark size and dimensions
             padded = np.concatenate([landmarks, padding], axis=0)  # enose tous dio "pinakes", axis=0
                 # to add them according to the frames length (proto argument)
-            return padded, valid_length
+            return padded, not_padding_frames
 
-        else:  # 30 length keep it as it is
-            return landmarks, valid_length
+        else:  # max_length keep it as it is
+            return landmarks, not_padding_frames
             
       
-def create_dataloaders(train_valid, val_valid, test_valid, dictionary, max_length=30, batch_size=32):
+def create_dataloaders(train_valid, val_valid, test_valid, dictionary, max_length=40, batch_size=32):
 # batch_size = posa dedomena tha vlepei/epeksergazete to montelo mazi/taftoxrona
-
+#APO (40,146,2) -> (32,40,146,2) !!!
     # ftiaxnoume 3 ksexorista Dataset objects. ena gia to kathe train/val/test
     # to kathena "kseri" mono ta dika toy dedomena alla ola tous xrisimopoioun to idio dictionary 
     train_dataset = GSLDataset(train_valid, dictionary, max_length)
@@ -74,7 +75,7 @@ def create_dataloaders(train_valid, val_valid, test_valid, dictionary, max_lengt
     test_dataset  = GSLDataset(test_valid, dictionary, max_length)
 
     # DataLoader gia to TRAINING:
-    # shuffle=True: anakateuei ti seira ton deigmaton se kathe epoch
+    # shuffle=True: anakateuei ti seira ton deigmaton se kathe epoch APARAITHTO GIA MONO TO TRAINING SET
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
