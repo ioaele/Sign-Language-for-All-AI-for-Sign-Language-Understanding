@@ -27,7 +27,7 @@ class PositionalEncoding(nn.Module):
         
         #apothikevoume ton pinaka ws stathero (oxi parametro, den mathenete klp)
         #mesa sto buffer tou montelou wste na metakinite mazi toy sti gpu (an exoume)
-        self.register_buffer("pe", pe) #ensoma
+        self.register_buffer("pe", pe) 
 
     def forward(self, frame_embeddings):
         return frame_embeddings + self.pe[:, :frame_embeddings.size(1), :] #prostitei ton pinaka thesewn sto x (landmarks 128 after embedding) san extra pliroforia pou leei ti thesi einai to kathe frame
@@ -46,9 +46,10 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
         num_heads=4,
         encoder_layers=2,
         max_length=40,
-        num_glosses=305,
+        num_glosses=306,
         dim_feedforwardnetwork=512,
-        percentage_zero_dropout=0.1
+        percentage_zero_dropout=0.1,
+        pooling_method="mean"
     ): #constructor: an den doso parametrous arxikopoia aftomata
         
         super().__init__() #arxikopoiei to nn.Module
@@ -57,6 +58,7 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
         self.d_model = d_model
         self.max_length = max_length
         self.num_glosses = num_glosses
+        self.pooling_method=pooling_method
         
         
         #2
@@ -83,17 +85,13 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
         # enable_nested_tensor=False giati xoris afto exo error.Simenei oti mia sigkekrimeni litourgia veltistopoihshs tou pytorch transformer den ipostirizete apo to mps backend tou mac
         #ara thn apenergopoioume 
         
+        if(pooling_method=="attention"):
+            self.attention_pool = nn.Linear(d_model, 1)
+        #ena Linear layer pou pairnei ta d_model xaraktiristika kathe frame kai ypologizei ena score gia kathe frame
+        #to score deixnei poso simantiko theorei to montelo to sygkekrimeno frame
+
+        
         self.classifier = nn.Linear(d_model, num_glosses)  #6 metatrepw thn anaparastasi twn 128 xar/kwn se bathmologies (called logits) sto dictionary (305 glosses/leksis) 
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         
     def forward(self, landmarks,not_padding_frames): #einai h methodos poy kathorizei pws mpainoun ta dedomena mesa sto modelo
         #self: to antikimeno tou montelou
@@ -116,21 +114,7 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
         #stin grammi 0,1,2 gia to kathe gloss vale true apo to px 32 (teleftaio true frame) kai meta
                 
         
-        # encoded_frames = self.transformer_encoder(frame_embeddings_position,src_key_padding_mask=padding_mask) #perna ta frame_embeddings_position ston encoder
-        attention_padding_mask = torch.zeros_like(
-            padding_mask,
-            dtype=frame_embeddings_position.dtype
-        )
-
-        attention_padding_mask = attention_padding_mask.masked_fill(
-            padding_mask,
-            -1e4
-        )
-
-        encoded_frames = self.transformer_encoder(
-            frame_embeddings_position,
-            src_key_padding_mask=attention_padding_mask
-        )
+        encoded_frames = self.transformer_encoder(frame_embeddings_position,src_key_padding_mask=padding_mask) #perna ta frame_embeddings_position ston encoder
         
         #ME TIN KANONIKI ENTOLI (AFINONTAS TO PADDING MASK T/F KAI ISAGONTAS TO STO TRANSFORMER) KANO TO EKSIS (LISI APO CHAT)
         # What does this change do?
@@ -143,7 +127,7 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
         # Mean pooling: Average all token embeddings into a single vector
         # CLS token pooling: Use the special [CLS] token’s embedding as the document representation
         # Max pooling: Take the maximum value for each dimension across all tokens
-        # Weighted pooling: Assign different importance to different tokens (e.g., using attention weights)
+        # Weighted/Attention pooling: Assign different importance to different tokens (e.g., using attention weights)
         #arxika xrisimopoiw to mean pooling
         
         #midenizw tis theseis ton padding frames gia na min ta ipologisoume sto mo
@@ -152,7 +136,68 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
 
         #iplogizoume to mo:to sum ginetai gia kathe gloss (32,40,128)->(32,128) sum xar/ka kathe frame
         #diairoume me to plithos ton pragmatikwn frames
-        pooling_vector = encoded_frames.sum(dim=1) / not_padding_frames.unsqueeze(1)
+        #pooling_vector = encoded_frames.sum(dim=1) / not_padding_frames.unsqueeze(1)
+
+        if self.pooling_method == "mean":
+            #pooling method 1-mean: gia kathe ena apo ta 128 embeddings vriskoume to athroisma tous across the 40 frames kai to diairoume m ta not padding frames
+            #athroizoume ta embeddings olon ton frames.to encoded_frames exei shape (batch_size,frames_length, d_model)
+            #sum(dim=1) -> (batch_size, d_model)
+            frame_sum = encoded_frames.sum(dim=1)
+
+            #prosthetoume mia diastasi sto not_padding_frames (batch_size,) -> (batch_size,1)
+            #gia na mporei na ginei h diairesi
+            not_padding_frames = not_padding_frames.unsqueeze(1)
+
+            #metatrepoume ton typo dedomenon tou arithmou ton frames
+            #gia na tairiazei me ton typo dedomenon tou encoded_frames
+            not_padding_frames = not_padding_frames.to(encoded_frames.dtype)
+
+            #mesos oro ton embeddings ton pragmatikon frames (oxi ton paddings)
+            pooling_vector = frame_sum / not_padding_frames
+
+        elif self.pooling_method == "max":
+            # Pooling method 2-max:gia kathe ena apo ta 128 embeddings viskoume to megalitero anamesa sta 40 frames
+
+            #pairnoume thn pio min timi pou mporei na parei o typos dedomenon pou xrisimopoioun ta encoded_frames
+            min=torch.finfo(encoded_frames.dtype).min
+
+            #Antikathistoume ta padding frames me to min
+            masked_frames = encoded_frames.masked_fill(padding_mask.unsqueeze(-1), min)
+
+            #vriskoume ti megalyteri timi gia kathe embedding (128) se ola ta frames 
+            #ta padding frames den epireazoun to apotelesma giati exoun tin elaxisti dynati timi
+            #To .values krata tis megistes times 
+            #To teliko pooling_vector exei shape (batch_size, d_model)
+            pooling_vector = masked_frames.max(dim=1).values
+
+        else: # Pooling method 3-attention
+
+            #ena score gia kathe frame
+            #shape: (batch_size, number of frames, 1)
+            scores = self.attention_pool(encoded_frames)
+
+            #(batch_size, number of frames, 1) -> (batch_size, number of frames)
+            scores = scores.squeeze(-1)
+
+            #antikathistoume ta scores ton padding frames me to minimum value
+            #diota ta padding frames den prepei na exoun varos sto attention pooling
+            scores = scores.masked_fill( padding_mask, torch.finfo(scores.dtype).min)
+
+            #scores -> attention weights 
+            #ta frames me megalitero score pairnoun megalitero varos
+            weights = torch.softmax(scores, dim=1)
+
+            #(batch_size, number of frames)->(batch_size, number of frames, 1)
+            weights = weights.unsqueeze(-1)
+
+            #poll/zoume ta embeddings kathe frame me to attention weight tou
+            #(batch_size,number of frames, d_model)
+            weighted_frames = encoded_frames * weights
+
+            #Athroizoume tis stathmismenes anaparastaseis se ola ta frames (dim=1)
+            #kai dimiourgoume ena teliko dianysma gia kathe example
+            #(batch_size, d_model)
+            pooling_vector = torch.sum(weighted_frames, dim=1)
 
         #prediction tou kathe video sto gloss/leksi 
         gloss_logits = self.classifier(pooling_vector)

@@ -1,4 +1,4 @@
-#python3 -m models.train
+# python3 -m models.train.py
 import json
 import torch
 import torch.nn as nn
@@ -6,10 +6,14 @@ from pathlib import Path
 
 from dataset.dataset import create_dataloaders
 from dataset.dataset_augmentation import create_dataloaders_aug
-from preprocessing.prepare_dataset import get_valid_glosses,relative_to_full_gloss_paths
+from preprocessing.prepare_dataset import get_glosses
 from models.transformer import ISLR_Transformer
 
-
+#as it seems this is necessary: chat explanation
+# Ορισμός seed για αναπαραγωγιμότητα των πειραμάτων
+# Βοηθά ώστε οι τυχαίες διαδικασίες να ξεκινούν από την ίδια κατάσταση
+# Επηρεάζει την αρχικοποίηση των βαρών και το ανακάτεμα των δεδομένων
+SEED = 42
 MAX_LENGTH = 40 #max frame length
 BATCH_SIZE = 32 #how many samples the model processes in each iteration before updating its weights
 EPOCHS = 50 #epanalipsis training dataset
@@ -21,40 +25,23 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent #pernei to parent folder a
 
 DATA_ROOT = PROJECT_ROOT / "processed_landmarks"
 
-TRAIN_CSV = PROJECT_ROOT / "data" / "train_greek_iso_merged.csv"
-VAL_CSV = PROJECT_ROOT / "data" / "val_greek_iso_merged.csv"
-TEST_CSV = PROJECT_ROOT / "data" / "test_greek_iso_merged.csv"
+TRAIN_CSV = PROJECT_ROOT / "data" / "train_greek_iso.csv"
+VAL_CSV = PROJECT_ROOT / "data" / "val_greek_iso.csv"
+TEST_CSV = PROJECT_ROOT / "data" / "test_greek_iso.csv"
 
 DICTIONARY_PATH = PROJECT_ROOT / "dataset" / "dictionary.json"
-
-MIN_FRAMES = 3 #temporary untli solving the storage problem
-
-# Select the device the model is going to run on
-if torch.backends.mps.is_available():
-    DEVICE = torch.device("mps") #mac apple silicon
-elif torch.cuda.is_available():
-    DEVICE = torch.device("cuda")
-else:
-    DEVICE = torch.device("cpu")
+DEVICE=torch.device("cpu")
 
 print("Device:", DEVICE)
-
-    
     
 #Load the gloss dictionary
 with open(DICTIONARY_PATH, "r", encoding="utf-8") as f:
     dictionary = json.load(f)
 
 #get the valid glosses for each dataset
-train_set = get_valid_glosses(TRAIN_CSV, DATA_ROOT, MIN_FRAMES)
-val_set = get_valid_glosses(VAL_CSV, DATA_ROOT, MIN_FRAMES)
-test_set = get_valid_glosses(TEST_CSV, DATA_ROOT, MIN_FRAMES)
-
-#relative to full paths
-train_set = relative_to_full_gloss_paths(train_set, DATA_ROOT)
-val_set= relative_to_full_gloss_paths(val_set, DATA_ROOT)
-test_set= relative_to_full_gloss_paths(test_set, DATA_ROOT)
-
+train_set = get_glosses(TRAIN_CSV, DATA_ROOT)
+val_set = get_glosses(VAL_CSV, DATA_ROOT)
+test_set = get_glosses(TEST_CSV, DATA_ROOT)
 
 #dimiourgw ta dataloaders
 train_loader, val_loader, test_loader = create_dataloaders(train_set,val_set,test_set,dictionary,
@@ -62,14 +49,17 @@ train_loader, val_loader, test_loader = create_dataloaders(train_set,val_set,tes
     batch_size=BATCH_SIZE,
 )
 
-#dimiourgw ta dataloaders
+# #dimiourgw ta dataloaders
 train_loader_aug, val_loader_aug, test_loader_aug = create_dataloaders_aug(train_set,val_set,test_set,dictionary,
-    max_length=MAX_LENGTH,
+    max_length=30,
     batch_size=BATCH_SIZE,
 )
 
 #initialing the transformer to the device we chose
+torch.manual_seed(SEED)
 model = ISLR_Transformer(num_landmarks=292,max_length=MAX_LENGTH,num_glosses=len(dictionary),).to(DEVICE)
+torch.manual_seed(SEED)
+model_aug = ISLR_Transformer(num_landmarks=292,max_length=30,num_glosses=len(dictionary),).to(DEVICE)
 
 #epilegoume to loss function:
 # Loss Function: Measuring Error
@@ -94,6 +84,7 @@ loss_function = nn.CrossEntropyLoss() #to cross entropi loss metra poso apexei
 # as each has unique advantages depending on the dataset and problem type.
 #WE START WITH THE ADAM
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE) 
+optimizer_aug = torch.optim.Adam(model_aug.parameters(),lr=LEARNING_RATE) 
 #model.parameters(): ta varoi kai oi parametroi p tha mathei to modelo
 
 
@@ -242,16 +233,19 @@ MODEL_PATH_AUG= PROJECT_ROOT / "islr_transformer_aug_best.pt"
 #TRAIN AND TEST
 best_validation_accuracy = 0.0
 best_validation_aug_accuracy=0.0
-early_stop=5
-i=0
+early_stop=10
+i = 0
+# i_aug = 0
 print("TRAIN/VAL")
 for epoch in range(1, EPOCHS + 1): #epanalamvanoume tin diadikasia epoch fores
   
+    #train data with normal and augmentation dataset
     train_loss, train_accuracy = train(model, train_loader, loss_function, optimizer, DEVICE)
-    train_loss_aug,train_accuracy_aug=train(model,train_loader_aug,loss_function,optimizer,DEVICE)
-    
+    train_loss_aug,train_accuracy_aug=train(model_aug,train_loader_aug,loss_function,optimizer_aug,DEVICE)
+   
+    #validated both models with THE SAME VALIDATION DATASET
     val_loss, val_accuracy = evaluation(model, val_loader, loss_function, DEVICE)
-    val_loss_aug, val_accuracy_aug = evaluation(model, val_loader_aug, loss_function, DEVICE)
+    val_loss_aug, val_accuracy_aug = evaluation(model_aug, val_loader, loss_function, DEVICE)
 
     print(f"Epoch [{epoch}/{EPOCHS}]")
         
@@ -267,36 +261,35 @@ for epoch in range(1, EPOCHS + 1): #epanalamvanoume tin diadikasia epoch fores
         f"Train Loss Aug: {train_loss_aug:.4f} | "
         f"Train Accuracy Aug: {train_accuracy_aug:.2%} | "
         f"Val Loss Aug: {val_loss_aug:.4f} | "
-        f"Val Accuracy Aug: {val_accuracy_aug:.2%}"
+        f"Val Accuracy Aug: {val_accuracy_aug:.2%}\n"
     )
     
 
-    if val_accuracy > best_validation_accuracy: 
-        best_validation_accuracy = val_accuracy #max accuracy
-        i=0
+  
+
+
+    if val_accuracy > best_validation_accuracy:
+        best_validation_accuracy = val_accuracy
+        i = 0
         torch.save(model.state_dict(), MODEL_PATH)
-
-        print(f"Best model saved")
-        print(f"Validation accuracy: {best_validation_accuracy:.2%}")
-
     else:
-        i = i + 1
-        
-            
-    if val_accuracy_aug> best_validation_aug_accuracy: 
-        best_validation_aug_accuracy = val_accuracy_aug #max accuracy
-        torch.save(model.state_dict(), MODEL_PATH_AUG)
+        i += 1
 
-        print(f"Best Augmentation model saved")
-        print(f"Validation aug accuracy: {best_validation_aug_accuracy:.2%}\n")
-    
+    if val_accuracy_aug > best_validation_aug_accuracy:
+        best_validation_aug_accuracy = val_accuracy_aug
+        i_aug = 0
+        torch.save(model_aug.state_dict(), MODEL_PATH_AUG)
+    else:
+        i_aug += 1
 
-    if i >= early_stop:
-        print(f"No improvement for {early_stop} epochs")
-        print(f"Stopping {epoch}/{EPOCHS} epoch")
+    if i >= early_stop and i_aug >= early_stop:
+        print(f"No improvement for {early_stop} epochs on either model")
         break
         
-       
+print(f"Best models saved")
+print(f"Validation accuracy: {best_validation_accuracy:.2%}")
+print(f"Validation aug accuracy: {best_validation_aug_accuracy:.2%}\n")
+    
 
 #TEST
 # print("TEST")

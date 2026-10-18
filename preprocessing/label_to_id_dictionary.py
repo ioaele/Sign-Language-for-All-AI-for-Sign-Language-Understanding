@@ -1,22 +1,22 @@
 # o ipologistis den katalamvainei apo leksis gia na mpori px na antistoixisi to kathe gloss sto antistoixo label toy
 # ara prepei oles aftes oi unique leksis pou exoume na metatrapoun se arithmous kai etsi tha exoume ena leksiko label -> id
 # apo to train dataset mas!!
-from prepare_dataset import get_valid_glosses
+from prepare_dataset import get_glosses
 import json
+from pathlib import Path
 
 def label_to_id():
-    root = "processed_landmarks"  
+
+    root = Path("processed_landmarks") 
     label_to_id={}
     #i used [] instead of {} and this is what claude said
     # Χρησιμοποιείς λίστα από tuples (dictionary = [("ΓΕΙΑ", 0), ("ΕΓΩ", 1), ...]) αντί για πραγματικό Python dictionary ({"ΓΕΙΑ": 0, "ΕΓΩ": 1, ...}). Λειτουργικά και τα δύο "λεξικά" έχουν την ίδια πληροφορία, αλλά:
 # Με λίστα, για να βρεις το id μιας συγκεκριμένης λέξης (π.χ. "ΓΕΙΑ") θα πρέπει να ψάξεις μέσα στη λίστα ένα-ένα μέχρι να τη βρεις (αργό αν έχεις 310 στοιχεία, ασήμαντο εδώ, αλλά κακή συνήθεια)
 # Με πραγματικό dictionary, η αναζήτηση είναι άμεση: label_to_id["ΓΕΙΑ"] σου δίνει κατευθείαν το id, χωρίς αναζήτηση
-    MIN_FRAMES = 3   
+    
 
-    train_glosses = get_valid_glosses("data/train_greek_iso_merged.csv",root,MIN_FRAMES)
-
+    train_glosses = get_glosses("data/train_greek_iso.csv",root)
     i=0
-
     unique_labels = sorted(set(label for npy_path, label in train_glosses))
 
     for label in unique_labels:
