@@ -48,8 +48,8 @@ class ISLR_Transformer(nn.Module): #nn.Module einai h vasiki klasi ths pytorch g
         max_length=40,
         num_glosses=306,
         dim_feedforwardnetwork=512,
-        percentage_zero_dropout=0.1,
-        pooling_method="mean"
+        percentage_zero_dropout=0.2,
+        pooling_method="attention"
     ): #constructor: an den doso parametrous arxikopoia aftomata
         
         super().__init__() #arxikopoiei to nn.Module

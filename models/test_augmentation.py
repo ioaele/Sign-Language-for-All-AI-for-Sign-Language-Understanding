@@ -6,7 +6,7 @@ import torch
 from pathlib import Path
 
 from dataset.dataset import create_dataloaders
-from preprocessing.prepare_dataset import get_glosses
+from preprocessing.get_glosses import get_glosses
 from models.transformer import ISLR_Transformer
 
 MAX_LENGTH = 40

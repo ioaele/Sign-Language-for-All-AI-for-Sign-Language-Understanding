@@ -6,15 +6,15 @@ from pathlib import Path
 
 from dataset.dataset import create_dataloaders
 from dataset.dataset_augmentation import create_dataloaders_aug
-from preprocessing.prepare_dataset import get_glosses
+from preprocessing.get_glosses import get_glosses
 from models.transformer import ISLR_Transformer
 
 #as it seems this is necessary: chat explanation
 # Ορισμός seed για αναπαραγωγιμότητα των πειραμάτων
 # Βοηθά ώστε οι τυχαίες διαδικασίες να ξεκινούν από την ίδια κατάσταση
 # Επηρεάζει την αρχικοποίηση των βαρών και το ανακάτεμα των δεδομένων
-SEED = 42
-MAX_LENGTH = 40 #max frame length
+SEED =2026
+MAX_LENGTH = 30 #max frame length
 BATCH_SIZE = 32 #how many samples the model processes in each iteration before updating its weights
 EPOCHS = 50 #epanalipsis training dataset
 LEARNING_RATE = 0.0001 # leei poso grigora the model updates its weights
@@ -51,15 +51,15 @@ train_loader, val_loader, test_loader = create_dataloaders(train_set,val_set,tes
 
 # #dimiourgw ta dataloaders
 train_loader_aug, val_loader_aug, test_loader_aug = create_dataloaders_aug(train_set,val_set,test_set,dictionary,
-    max_length=30,
+    max_length=MAX_LENGTH,
     batch_size=BATCH_SIZE,
 )
 
 #initialing the transformer to the device we chose
+# torch.manual_seed(SEED)
+# model = ISLR_Transformer(num_landmarks=292,max_length=MAX_LENGTH,num_glosses=len(dictionary),).to(DEVICE)
 torch.manual_seed(SEED)
-model = ISLR_Transformer(num_landmarks=292,max_length=MAX_LENGTH,num_glosses=len(dictionary),).to(DEVICE)
-torch.manual_seed(SEED)
-model_aug = ISLR_Transformer(num_landmarks=292,max_length=30,num_glosses=len(dictionary),).to(DEVICE)
+model_aug = ISLR_Transformer(num_landmarks=292,max_length=MAX_LENGTH,num_glosses=len(dictionary),).to(DEVICE)
 
 #epilegoume to loss function:
 # Loss Function: Measuring Error
@@ -83,9 +83,15 @@ loss_function = nn.CrossEntropyLoss() #to cross entropi loss metra poso apexei
 # Experiment to see which optimizer works best for your task, 
 # as each has unique advantages depending on the dataset and problem type.
 #WE START WITH THE ADAM
-optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE) 
-optimizer_aug = torch.optim.Adam(model_aug.parameters(),lr=LEARNING_RATE) 
+# optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE) 
+optimizer_aug = torch.optim.AdamW(model_aug.parameters(),lr=LEARNING_RATE,weight_decay=0.01)
 #model.parameters(): ta varoi kai oi parametroi p tha mathei to modelo
+#ADDING WEIGHT DECAY VASI CHAT VERY IMPORTANT:
+# Weight decay: Τεχνική regularization που περιορίζει τις μεγάλες τιμές των βαρών
+# του μοντέλου, βοηθώντας στην αποφυγή του overfitting και στη βελτίωση της
+# γενίκευσης σε νέα, άγνωστα δεδομένα.
+# Μεγαλύτερη τιμή σημαίνει ισχυρότερη regularization, αλλά μπορεί να οδηγήσει
+# σε underfitting.
 
 
 #ARA SO FAR WE HAVE: (1)Transformer model: Dexetai landmarks kai paragei ta logits gia ta glosses
@@ -227,80 +233,80 @@ def evaluation(model, loader, loss_function, device):
 
 
 
-MODEL_PATH = PROJECT_ROOT / "islr_transformer_best.pt"
-MODEL_PATH_AUG= PROJECT_ROOT / "islr_transformer_aug_best.pt"
+# MODEL_PATH = PROJECT_ROOT / "islr_transformer_best.pt"
+MODEL_PATH_AUG= PROJECT_ROOT / "islr_transformer_aug_best_config9.pt"
 
 #TRAIN AND TEST
-best_validation_accuracy = 0.0
+# best_validation_accuracy = 0.0
 best_validation_aug_accuracy=0.0
-early_stop=10
-i = 0
+# early_stop=10
+# # i = 0
 # i_aug = 0
-print("TRAIN/VAL")
-for epoch in range(1, EPOCHS + 1): #epanalamvanoume tin diadikasia epoch fores
+# print("TRAIN/VAL")
+# for epoch in range(1, EPOCHS + 1): #epanalamvanoume tin diadikasia epoch fores
   
-    #train data with normal and augmentation dataset
-    train_loss, train_accuracy = train(model, train_loader, loss_function, optimizer, DEVICE)
-    train_loss_aug,train_accuracy_aug=train(model_aug,train_loader_aug,loss_function,optimizer_aug,DEVICE)
+#     #train data with normal and augmentation dataset
+#     # train_loss, train_accuracy = train(model, train_loader, loss_function, optimizer, DEVICE)
+#     train_loss_aug,train_accuracy_aug=train(model_aug,train_loader_aug,loss_function,optimizer_aug,DEVICE)
    
-    #validated both models with THE SAME VALIDATION DATASET
-    val_loss, val_accuracy = evaluation(model, val_loader, loss_function, DEVICE)
-    val_loss_aug, val_accuracy_aug = evaluation(model_aug, val_loader, loss_function, DEVICE)
+#     #validated both models with THE SAME VALIDATION DATASET
+#     # val_loss, val_accuracy = evaluation(model, val_loader, loss_function, DEVICE)
+#     val_loss_aug, val_accuracy_aug = evaluation(model_aug, val_loader, loss_function, DEVICE)
 
-    print(f"Epoch [{epoch}/{EPOCHS}]")
+#     print(f"Epoch [{epoch}/{EPOCHS}]")
         
-    print(
-        f"Train Loss: {train_loss:.4f} | "
-        f"Train Accuracy: {train_accuracy:.2%} | "
-        f"Val Loss: {val_loss:.4f} | "
-        f"Val Accuracy: {val_accuracy:.2%}"
-    )
+#     # print(
+#     #     f"Train Loss: {train_loss:.4f} | "
+#     #     f"Train Accuracy: {train_accuracy:.2%} | "
+#     #     f"Val Loss: {val_loss:.4f} | "
+#     #     f"Val Accuracy: {val_accuracy:.2%}"
+#     # )
     
     
-    print(
-        f"Train Loss Aug: {train_loss_aug:.4f} | "
-        f"Train Accuracy Aug: {train_accuracy_aug:.2%} | "
-        f"Val Loss Aug: {val_loss_aug:.4f} | "
-        f"Val Accuracy Aug: {val_accuracy_aug:.2%}\n"
-    )
+#     print(
+#         f"Train Loss Aug: {train_loss_aug:.4f} | "
+#         f"Train Accuracy Aug: {train_accuracy_aug:.2%} | "
+#         f"Val Loss Aug: {val_loss_aug:.4f} | "
+#         f"Val Accuracy Aug: {val_accuracy_aug:.2%}\n"
+#     )
     
 
   
 
 
-    if val_accuracy > best_validation_accuracy:
-        best_validation_accuracy = val_accuracy
-        i = 0
-        torch.save(model.state_dict(), MODEL_PATH)
-    else:
-        i += 1
+#     # if val_accuracy > best_validation_accuracy:
+#     #     best_validation_accuracy = val_accuracy
+#     #     i = 0
+#     #     torch.save(model.state_dict(), MODEL_PATH)
+#     # else:
+#     #     i += 1
 
-    if val_accuracy_aug > best_validation_aug_accuracy:
-        best_validation_aug_accuracy = val_accuracy_aug
-        i_aug = 0
-        torch.save(model_aug.state_dict(), MODEL_PATH_AUG)
-    else:
-        i_aug += 1
+#     if val_accuracy_aug > best_validation_aug_accuracy:
+#         best_validation_aug_accuracy = val_accuracy_aug
+#         i_aug = 0
+#         torch.save(model_aug.state_dict(), MODEL_PATH_AUG)
+#     else:
+#         i_aug += 1
 
-    if i >= early_stop and i_aug >= early_stop:
-        print(f"No improvement for {early_stop} epochs on either model")
-        break
+#     if  i_aug >= early_stop:
+#         #i >= early_stop and
+#         print(f"No improvement for {early_stop} epochs on either model")
+#         break
         
-print(f"Best models saved")
-print(f"Validation accuracy: {best_validation_accuracy:.2%}")
-print(f"Validation aug accuracy: {best_validation_aug_accuracy:.2%}\n")
+# print(f"Best models saved")
+# # print(f"Validation accuracy: {best_validation_accuracy:.2%}")
+# print(f"Validation aug accuracy: {best_validation_aug_accuracy:.2%}\n")
     
 
 #TEST
-# print("TEST")
-# #loading the best model
-# model.load_state_dict(
-#     torch.load(MODEL_PATH, map_location=DEVICE)
-# )
+print("TEST")
+#loading the best model
+FINAL_MODEL_PATH = "model_files/islr_transformer_aug_best_config32_seed2026_30_BEST.pt"
+model_aug.load_state_dict(torch.load(FINAL_MODEL_PATH, map_location=DEVICE))
 
-# #evaluating on test set
-# test_loss, test_accuracy = evaluation(model, test_loader, loss_function, DEVICE)
+#evaluating on test set
+test_loss, test_accuracy = evaluation(model_aug, test_loader, loss_function, DEVICE)
 
-# print(f"Best Validation Accuracy: {best_val_accuracy:.2%}")
-# print(f"Test Loss: {test_loss:.4f}")
-# print(f"Test Accuracy: {test_accuracy:.2%}")
+
+print(f"Test Loss: {test_loss:.4f}")
+print(f"Test Accuracy: {test_accuracy:.2%}")

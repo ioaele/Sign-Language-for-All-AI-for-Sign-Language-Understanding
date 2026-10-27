@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 
 from dataset.dataset import create_dataloaders
-from preprocessing.prepare_dataset import get_glosses
+from preprocessing.get_glosses import get_glosses
 from models.transformer import ISLR_Transformer
 
 # ---------------- settings ----------------

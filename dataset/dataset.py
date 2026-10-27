@@ -8,7 +8,7 @@ import numpy as np
 
 class GSLDataset(Dataset):
     
-    def __init__(self, glosses, dictionary, max_length=40):
+    def __init__(self, glosses, dictionary=None, max_length=40):
         self.glosses = glosses # lista (path,label) poy ftiaksame apo to get_available_glosses
         self.dictionary = dictionary  #lista label-id
         self.max_length = max_length      # megisto length gia to stathero input
@@ -18,25 +18,38 @@ class GSLDataset(Dataset):
 
    
     def __getitem__(self, index):
-        npy_path, label = self.glosses[index]  #index gloss path
+        #prepei na tsekaro an to label=none giati to thelame mono gia to train/validation
+    
+        item=self.glosses[index]
 
-        landmarks = np.load(npy_path)  # [frames, landmarks, 2]
-
-        landmarks, not_padding_frames = self.change_length(landmarks)   #change its number of frames to be at max_length
+        if isinstance(item,(tuple,list)): #elegxoume an to input einai tuple h list diladi an den einai mono mia metavliti 
+            #ara mono ta glosses .npy xoris to label 
+            npy_path,label=item
+        else:
+            npy_path=item
+            label=None
+        
+        landmarks=np.load(npy_path)  # [frames, landmarks, 2]
+        
+        landmarks,not_padding_frames = self.change_length(landmarks)   #change its number of frames to be at max_length
 
         #BHMA 1
-        landmarks = landmarks.reshape(self.max_length, -1) #(32,40,146,2) -> (32,40,292)
+        landmarks=landmarks.reshape(self.max_length, -1) #(32,40,146,2) -> (32,40,292)
 
-        
-        label_id = self.dictionary[label] #get the id from its label in the dictionary
-
-        return torch.tensor(landmarks, dtype=torch.float32), label_id, not_padding_frames
-     #for a specific index return the landmarks of that gloss, its label id and its real number of frames
+        landmarks = torch.tensor(landmarks, dtype=torch.float32)
      
      #Ένα tensor είναι ένας πολυδιάστατος πίνακας αριθμών. 
      # Στο PyTorch, τα tensors είναι η βασική δομή δεδομένων που χρησιμοποιούμε για 
      # να αποθηκεύουμε inputs, labels, παραμέτρους του μοντέλου και αποτελέσματα υπολογισμών.
      
+        if label is None:
+            return landmarks,not_padding_frames
+        
+        label_id = self.dictionary[label] #get the id from its label in the dictionary
+
+        return landmarks, label_id, not_padding_frames
+
+  
      
 # afou to deep model prepei na exei to idio input type each time prepei na kanoume ta glosses mas idiou mikous
 # eite padding to make them bigger eite truncate to make the shorter (in length)

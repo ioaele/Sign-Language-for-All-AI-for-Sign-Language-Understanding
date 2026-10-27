@@ -1,7 +1,7 @@
 # o ipologistis den katalamvainei apo leksis gia na mpori px na antistoixisi to kathe gloss sto antistoixo label toy
 # ara prepei oles aftes oi unique leksis pou exoume na metatrapoun se arithmous kai etsi tha exoume ena leksiko label -> id
 # apo to train dataset mas!!
-from prepare_dataset import get_glosses
+from get_glosses import get_glosses
 import json
 from pathlib import Path
 
